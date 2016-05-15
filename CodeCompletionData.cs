@@ -3,7 +3,7 @@
  * Benutzer: grunwald
  * Datum: 27.08.2007
  * Zeit: 14:25
- * 
+ *
  * Sie können diese Vorlage unter Extras > Optionen > Codeerstellung > Standardheader ändern.
  */
 
@@ -16,6 +16,7 @@ using ICSharpCode.SharpDevelop.Dom;
 using ICSharpCode.SharpDevelop.Dom.CSharp;
 using ICSharpCode.SharpDevelop.Dom.VBNet;
 using ICSharpCode.TextEditor.Gui.CompletionWindow;
+using System.Text.RegularExpressions;
 
 namespace CSharpEditor
 {
@@ -28,26 +29,27 @@ namespace CSharpEditor
 		IClass c;
 		static VBNetAmbience vbAmbience = new VBNetAmbience();
 		static CSharpAmbience csharpAmbience = new CSharpAmbience();
-		
-		public CodeCompletionData(IMember member)
+        static readonly Regex whitespace = new Regex(@"\s+");
+
+        public CodeCompletionData(IMember member)
 			: base(member.Name, null, GetMemberImageIndex(member))
 		{
 			this.member = member;
 		}
-		
+
 		public CodeCompletionData(IClass c)
 			: base(c.Name, null, GetClassImageIndex(c))
 		{
 			this.c = c;
 		}
-		
+
 		int overloads = 0;
-		
+
 		public void AddOverload()
 		{
 			overloads++;
 		}
-		
+
 		static int GetMemberImageIndex(IMember member)
 		{
 			// Missing: different icons for private/public member
@@ -61,8 +63,118 @@ namespace CSharpEditor
 				return 6;
 			return 3;
 		}
-		
-		static int GetClassImageIndex(IClass c)
+
+        [Obsolete("Use 'ConvertDocumentation' instead.")]
+        public static string GetDocumentation(string doc)
+        {
+            return ConvertDocumentation(doc);
+        }
+
+        /// <summary>
+		/// Converts the xml documentation string into a plain text string.
+		/// </summary>
+		public static string ConvertDocumentation(string doc)
+        {
+            if (string.IsNullOrEmpty(doc))
+                return string.Empty;
+
+            System.IO.StringReader reader = new System.IO.StringReader("<docroot>" + doc + "</docroot>");
+            XmlTextReader xml = new XmlTextReader(reader);
+            StringBuilder ret = new StringBuilder();
+            ////Regex whitespace    = new Regex(@"\s+");
+
+            try
+            {
+                xml.Read();
+                do
+                {
+                    if (xml.NodeType == XmlNodeType.Element)
+                    {
+                        string elname = xml.Name.ToLowerInvariant();
+                        switch (elname)
+                        {
+                            case "filterpriority":
+                                xml.Skip();
+                                break;
+                            case "remarks":
+                                ret.Append(Environment.NewLine);
+                                ret.Append("Remarks:");
+                                ret.Append(Environment.NewLine);
+                                break;
+                            case "example":
+                                ret.Append(Environment.NewLine);
+                                ret.Append("Example:");
+                                ret.Append(Environment.NewLine);
+                                break;
+                            case "exception":
+                                ret.Append(Environment.NewLine);
+                                ret.Append(GetCref(xml["cref"]));
+                                ret.Append(": ");
+                                break;
+                            case "returns":
+                                ret.Append(Environment.NewLine);
+                                ret.Append("Returns: ");
+                                break;
+                            case "see":
+                                ret.Append(GetCref(xml["cref"]));
+                                ret.Append(xml["langword"]);
+                                break;
+                            case "seealso":
+                                ret.Append(Environment.NewLine);
+                                ret.Append("See also: ");
+                                ret.Append(GetCref(xml["cref"]));
+                                break;
+                            case "paramref":
+                                ret.Append(xml["name"]);
+                                break;
+                            case "param":
+                                ret.Append(Environment.NewLine);
+                                ret.Append(whitespace.Replace(xml["name"].Trim(), " "));
+                                ret.Append(": ");
+                                break;
+                            case "value":
+                                ret.Append(Environment.NewLine);
+                                ret.Append("Value: ");
+                                ret.Append(Environment.NewLine);
+                                break;
+                            case "br":
+                            case "para":
+                                ret.Append(Environment.NewLine);
+                                break;
+                        }
+                    }
+                    else if (xml.NodeType == XmlNodeType.Text)
+                    {
+                        ret.Append(whitespace.Replace(xml.Value, " "));
+                    }
+                } while (xml.Read());
+            }
+            catch (Exception ex)
+            {
+                //LoggingService.Debug("Invalid XML documentation: " + ex.Message);
+                //return doc;
+            }
+            return ret.ToString();
+        }
+
+        static string GetCref(string cref)
+        {
+            if (cref == null || cref.Trim().Length == 0)
+            {
+                return "";
+            }
+            if (cref.Length < 2)
+            {
+                return cref;
+            }
+            if (cref.Substring(1, 1) == ":")
+            {
+                return cref.Substring(2, cref.Length - 2);
+            }
+            return cref;
+        }
+
+        static int GetClassImageIndex(IClass c)
 		{
 			switch (c.ClassType) {
 				case ClassType.Enum:
@@ -71,9 +183,9 @@ namespace CSharpEditor
 					return 0;
 			}
 		}
-		
+
 		string description;
-		
+
 		// DefaultCompletionData.Description is not virtual, but we can reimplement
 		// the interface to get the same effect as overriding.
 		string ICompletionData.Description {
@@ -89,7 +201,7 @@ namespace CSharpEditor
 				return description;
 			}
 		}
-		
+
 		/// <summary>
 		/// Converts a member to text.
 		/// Returns the declaration of the member as C# or VB code, e.g.
@@ -111,7 +223,7 @@ namespace CSharpEditor
 			// unknown entity:
 			return entity.ToString();
 		}
-		
+
 		public static string XmlDocumentationToText(string xmlDoc)
 		{
 			System.Diagnostics.Debug.WriteLine(xmlDoc);

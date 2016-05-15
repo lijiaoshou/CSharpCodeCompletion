@@ -101,6 +101,7 @@
     <Compile Include="CodeCompletionProvider.cs" />
     <Compile Include="CodeCompletionKeyHandler.cs" />
     <Compile Include="HostCallbackImplementation.cs" />
+    <Compile Include="MethodInsightDataProvider.cs" />
     <Compile Include="ToolTipProvider.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -35,6 +35,7 @@ using System.Threading;
 using ICSharpCode.TextEditor;
 using ICSharpCode.TextEditor.Gui;
 using ICSharpCode.TextEditor.Gui.CompletionWindow;
+using ICSharpCode.TextEditor.Gui.InsightWindow;
 
 namespace CSharpEditor
 {
@@ -88,7 +89,15 @@ namespace CSharpEditor
 					codeCompletionWindow.Closed += new EventHandler(CloseCodeCompletionWindow);
 				}
 			}
-			return false;
+            else if (key == '(')
+            {
+                IInsightDataProvider insightDataProvider = new MethodInsightDataProvider(mainForm);
+
+                InsightWindow insightWindow = new InsightWindow(mainForm, editor);
+                insightWindow.AddInsightDataProvider(insightDataProvider, MainForm.DummyFileName);
+                insightWindow.ShowInsightWindow();
+            }
+            return false;
 		}
 		
 		void CloseCodeCompletionWindow(object sender, EventArgs e)
